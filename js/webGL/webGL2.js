@@ -233,7 +233,7 @@ async function get(path) {
     return result;
 }
 
-async function loadGeometry(path) {
+async function loadGeometry(path, centerGeometry = false) {
 
     let response = await get(path);
     let result = response?.data?.attributes || response;
@@ -252,10 +252,40 @@ async function loadGeometry(path) {
 
     let indexed = index.length > 0;
 
-
     for(let id in result) {
 
         const data = new Float32Array(result[id]?.array || result[id]);
+
+        if(centerGeometry && id == "position") {
+
+            console.log(data.length);
+
+            let totalVertices = 0;
+            let centerX = 0;
+            let centerY = 0;
+            let centerZ = 0;
+
+            for(let j = 0; j < data.length / 3; j += 3) {
+                centerX += data[3 * j + 0];
+                centerY += data[3 * j + 1];
+                centerZ += data[3 * j + 2];
+                totalVertices ++;
+            }
+
+            centerX /= totalVertices;
+            centerY /= totalVertices;
+            centerZ /= totalVertices;
+
+            console.log(totalVertices, centerX, centerY, centerZ);
+
+            for(let i = 0; i < data.length / 3; i += 1) {
+                data[3 * i + 0] -= centerX;
+                data[3 * i + 1] -= centerY;
+                data[3 * i + 2] -= centerZ;
+            }
+            
+        }
+
         let orderedData = data;
 
         if((id == "position" || id == "normal")) {

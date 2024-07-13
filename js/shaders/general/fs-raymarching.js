@@ -84,7 +84,7 @@ const fsRaymarching = `#version 300 es
         ao = clamp((hr - dd), 0., 1.);
         }
         totao += ao * sca * vec4(1.);
-        sca *= 0.95;
+        sca *= 0.94;
     }
     float aoCoef = 1.;
     totao = vec4(totao.rgb, clamp(aoCoef * totao.w, 0., 1.));
@@ -97,16 +97,17 @@ const fsRaymarching = `#version 300 es
         colorData = vec4(0.);
 
         //Generate a ray with the caamera orientation.
+
         vec2 xy = (2.0 * gl_FragCoord.xy - resolution.xy)/resolution.y;
 
         float z = resolution.y / tan(radians(35.) / 2.0);
-        vec3 dir =  normalize(vec3(xy, z / resolution.y));
+        vec3 dir =  normalize(vec3(xy, -z / resolution.y));
         dir = normalize(dir);
 
-        vec3 eye = vec3(0.0, 0.0, -length(cameraPosition) * 0.2);
+        vec3 eye = vec3(0.0, 0.0, length(cameraPosition) * 0.2);
 
-        eye = vec3(cameraOrientation * vec4(eye, 1.));
-        dir = vec3(cameraOrientation * vec4(dir, 1.));
+        eye = vec3(inverse(cameraOrientation) * vec4(eye, 1.));
+        dir = vec3(inverse(cameraOrientation) * vec4(dir, 1.));
 
         //Find the collision point between the ray and the bounding box of the texture
         //this discard fragments that won't contribute (rendered in white)

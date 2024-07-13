@@ -23,6 +23,10 @@ const fsSceneDF = `#version 300 es
     uniform vec4 uData4;
     uniform mat4 uMatrix4;
 
+    uniform sampler3D tDistance5;
+    uniform vec4 uData5;
+    uniform mat4 uMatrix5;
+
     precision highp float;
         
     layout(location=0) out vec4 texel0;
@@ -54,17 +58,19 @@ const fsSceneDF = `#version 300 es
 
     float sceneSDF(vec3 pos) {
 
-    float d = pos.y + 0.2;
+        float d = pos.y + 0.2;
 
-    d = min(d, shapeSDF(pos, tDistance1, uData1, inverse(uMatrix1)));
+        d = min(d, shapeSDF(pos, tDistance1, uData1, inverse(uMatrix1)));
 
-    d = min(d, shapeSDF(pos, tDistance2, uData2, inverse(uMatrix2)));
+        d = min(d, shapeSDF(pos, tDistance2, uData2, inverse(uMatrix2)));
 
-    d = min(d, shapeSDF(pos, tDistance3, uData3, inverse(uMatrix3)));
+        d = min(d, shapeSDF(pos, tDistance3, uData3, inverse(uMatrix3)));
 
-    d = min(d, shapeSDF(pos, tDistance4, uData4, inverse(uMatrix4)));
+        d = min(d, shapeSDF(pos, tDistance4, uData4, inverse(uMatrix4)));
 
-    return d;
+        d = min(d, shapeSDF(pos, tDistance5, uData5, inverse(uMatrix5)));
+
+        return d;
     }
 
 

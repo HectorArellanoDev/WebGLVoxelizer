@@ -9,6 +9,7 @@ const fsRenderGeometry = `#version 300 es
     uniform vec4 sceneData;
     uniform float uAlpha;
     uniform float useReflection;
+    uniform float uReady;
 
     in vec3 vPos;
     in vec3 vNormal;
@@ -106,7 +107,7 @@ const fsRenderGeometry = `#version 300 es
         vec3 lightPosition = 100. * vec3(cos(lightAngle), 1., sin(lightAngle));
         vec3 lightDirection = normalize(lightPosition - vPos);
     
-        float shadows = softshadow(vPos + 0.08 * vNormal, lightDirection, 0., 6., 0.2);
+        float shadows = softshadow(vPos + 0.08 * vNormal, lightDirection, 0., 6., 0.2 * (sin(time * 1.4235345) * 0.5 + 0.5));
     
         vec3 c = vec3(0.);
         float fresnel = 0.;
@@ -140,6 +141,7 @@ const fsRenderGeometry = `#version 300 es
         colorData = vec4( c * fresnel + (1. - fresnel) * diffuse * vec3(1. - ao.w) * (ambientTerm + (1. - ambientTerm) * shadows), uAlpha );
         colorData.rgb = pow(colorData.rgb, vec3(0.4545));
     
+        if(uReady == 0.) colorData.rgb = vNormal * 0.5 + 0.5;
     }
 `;
 

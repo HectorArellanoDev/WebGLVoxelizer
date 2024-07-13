@@ -166,7 +166,7 @@ class DistanceFieldWebGL {
     }
 
     //Voxelizes the mesh relative to the whole scene
-    voxelize(id, mesh) {
+    generate(id, mesh) {
 
         if (!mesh._voxelData) mesh._voxelData = this.prepareAndGetMeshData(mesh, id);
 

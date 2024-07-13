@@ -49,6 +49,7 @@ export function init() {
     renderGeometry.time = gl.getUniformLocation(renderGeometry, "time");
     renderGeometry.cameraPosition = gl.getUniformLocation(renderGeometry, "cameraPosition");
     renderGeometry.useReflection = gl.getUniformLocation(renderGeometry, "useReflection");
+    renderGeometry.uReady = gl.getUniformLocation(renderGeometry, "uReady");
 
 
     
@@ -119,5 +120,9 @@ export function init() {
     sceneDFShader.tDistance4 = gl.getUniformLocation(sceneDFShader, "tDistance4");
     sceneDFShader.uData4 = gl.getUniformLocation(sceneDFShader, "uData4");
     sceneDFShader.uMatrix4 = gl.getUniformLocation(sceneDFShader, "uMatrix4");
+
+    sceneDFShader.tDistance5 = gl.getUniformLocation(sceneDFShader, "tDistance5");
+    sceneDFShader.uData5 = gl.getUniformLocation(sceneDFShader, "uData5");
+    sceneDFShader.uMatrix5 = gl.getUniformLocation(sceneDFShader, "uMatrix5");
 
 }

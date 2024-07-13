@@ -64,7 +64,6 @@ class Camera {
             this.position[1] = this.ratio * Math.cos(this._alpha) + this.target[1];
             this.position[2] = this.ratio * Math.sin(this._alpha) * Math.cos(this._beta) + this.target[2];
             this.cameraTransformMatrix = this.defineTransformMatrix(this.position, this.target);
-        
             for(let i = 0; i < 16; i++) {
                 this.orientationMatrix[i] = this.cameraTransformMatrix[i];
             }
