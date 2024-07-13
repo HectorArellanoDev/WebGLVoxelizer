@@ -68,10 +68,10 @@ let furnitureModelViewMatrix = mat4.create();
 Programs.init();
 
 //Create the voxelizers
-let distanceFieldGenerator = new DistanceFieldWebGL(256, 2);
+let distanceFieldGenerator = new DistanceFieldWebGL(128, 1);
 let voxelsReady = false;
 
-let sceneResolution = 512;
+let sceneResolution = 300;
 let sceneDistanceField = webGL2.createTexture3D(sceneResolution, sceneResolution, sceneResolution, gl.R32F, gl.RED, gl.LINEAR, gl.LINEAR, gl.FLOAT, null);
 
 
@@ -88,43 +88,6 @@ Promise.all([distanceFieldGenerator.generate("furniture", furniture),
         nissanWheels._voxelData = response.filter(e => e.id === "nissanWheels")[0];
         room._voxelData = response.filter(e => e.id === "room")[0];
         furniture._voxelData = response.filter(e => e.id === "furniture")[0];
-
-
-        //Create the scene distance field
-        gl.viewport(0, 0, sceneResolution, sceneResolution);
-        gl.useProgram(Programs.sceneDFShader);
-        gl.uniform1f(Programs.sceneDFShader.voxelResolution, sceneResolution);
-        gl.uniform4f(Programs.sceneDFShader.uData0, -7, -1, -7, 14);
-
-        webGL2.bindTexture(Programs.sceneDFShader.tDistance1, room._voxelData.distanceFieldTexture, 0, true);
-        gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix1, false, identityMatrix);
-        gl.uniform4f(Programs.sceneDFShader.uData1, room.min.x, room.min.y, room.min.z, room.scale);
-
-        webGL2.bindTexture(Programs.sceneDFShader.tDistance2, porsche._voxelData.distanceFieldTexture, 1, true);
-        gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix2, false, porscheModelMatrix);
-        gl.uniform4f(Programs.sceneDFShader.uData2, porsche.min.x, porsche.min.y, porsche.min.z, porsche.scale);
-
-        webGL2.bindTexture(Programs.sceneDFShader.tDistance3, nissan._voxelData.distanceFieldTexture, 2, true);
-        gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix3, false, nissanModelMatrix);
-        gl.uniform4f(Programs.sceneDFShader.uData3, nissan.min.x, nissan.min.y, nissan.min.z, nissan.scale);
-
-        webGL2.bindTexture(Programs.sceneDFShader.tDistance4, nissanWheels._voxelData.distanceFieldTexture, 3, true);
-        gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix4, false, nissanModelMatrix);
-        gl.uniform4f(Programs.sceneDFShader.uData4, nissanWheels.min.x, nissanWheels.min.y, nissanWheels.min.z, nissanWheels.scale);
-
-        webGL2.bindTexture(Programs.sceneDFShader.tDistance5, furniture._voxelData.distanceFieldTexture, 4, true);
-        gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix5, false, furnitureModelMatrix);
-        gl.uniform4f(Programs.sceneDFShader.uData5, furniture.min.x, furniture.min.y, furniture.min.z, furniture.scale);
-
-
-        let depth = sceneResolution / 4;
-        for(let i = 0; i < depth; i ++) {
-            let framebuffer3D = webGL2.createFramebuffer3D(sceneDistanceField, [4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3]);
-            gl.uniform4f(Programs.sceneDFShader.indices, 4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
-            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer3D);
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        }
 
         voxelsReady = true;
 })
@@ -151,6 +114,43 @@ let currentFrame = 0;
 let render = () => {
 
     currentFrame ++;
+
+
+    //Create the scene distance field
+    gl.viewport(0, 0, sceneResolution, sceneResolution);
+    gl.useProgram(Programs.sceneDFShader);
+    gl.uniform1f(Programs.sceneDFShader.voxelResolution, sceneResolution);
+    gl.uniform4f(Programs.sceneDFShader.uData0, -7, -1, -7, 14);
+
+    webGL2.bindTexture(Programs.sceneDFShader.tDistance1, room._voxelData.distanceFieldTexture, 0, true);
+    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix1, false, identityMatrix);
+    gl.uniform4f(Programs.sceneDFShader.uData1, room.min.x, room.min.y, room.min.z, room.scale);
+
+    webGL2.bindTexture(Programs.sceneDFShader.tDistance2, porsche._voxelData.distanceFieldTexture, 1, true);
+    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix2, false, porscheModelMatrix);
+    gl.uniform4f(Programs.sceneDFShader.uData2, porsche.min.x, porsche.min.y, porsche.min.z, porsche.scale);
+
+    webGL2.bindTexture(Programs.sceneDFShader.tDistance3, nissan._voxelData.distanceFieldTexture, 2, true);
+    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix3, false, nissanModelMatrix);
+    gl.uniform4f(Programs.sceneDFShader.uData3, nissan.min.x, nissan.min.y, nissan.min.z, nissan.scale);
+
+    webGL2.bindTexture(Programs.sceneDFShader.tDistance4, nissanWheels._voxelData.distanceFieldTexture, 3, true);
+    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix4, false, nissanModelMatrix);
+    gl.uniform4f(Programs.sceneDFShader.uData4, nissanWheels.min.x, nissanWheels.min.y, nissanWheels.min.z, nissanWheels.scale);
+
+    webGL2.bindTexture(Programs.sceneDFShader.tDistance5, furniture._voxelData.distanceFieldTexture, 4, true);
+    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix5, false, furnitureModelMatrix);
+    gl.uniform4f(Programs.sceneDFShader.uData5, furniture.min.x, furniture.min.y, furniture.min.z, furniture.scale);
+
+
+    let depth = sceneResolution / 4;
+    for(let i = 0; i < depth; i ++) {
+        let framebuffer3D = webGL2.createFramebuffer3D(sceneDistanceField, [4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3]);
+        gl.uniform4f(Programs.sceneDFShader.indices, 4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer3D);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
 
     requestAnimationFrame(render);
     camera.updateCamera(35, canvas.width / canvas.height, cameraDistance);
