@@ -258,8 +258,6 @@ async function loadGeometry(path, centerGeometry = false) {
 
         if(centerGeometry && id == "position") {
 
-            console.log(data.length);
-
             let totalVertices = 0;
             let centerX = 0;
             let centerY = 0;
@@ -275,8 +273,6 @@ async function loadGeometry(path, centerGeometry = false) {
             centerX /= totalVertices;
             centerY /= totalVertices;
             centerZ /= totalVertices;
-
-            console.log(totalVertices, centerX, centerY, centerZ);
 
             for(let i = 0; i < data.length / 3; i += 1) {
                 data[3 * i + 0] -= centerX;
