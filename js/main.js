@@ -46,12 +46,12 @@ let identityMatrix = mat4.create();
 let nissanModelMatrix = mat4.fromValues(1, 0, 0, 0,
                                         0, 1, 0, 0,
                                         0, 0, 1, 0,
-                                        3, 0., 0, 1); 
+                                        3, 0.015, 0, 1); 
 
 let porscheModelMatrix = mat4.fromValues(1, 0, 0, 0,
                                         0, 1, 0, 0,
                                         0, 0, 1, 0,
-                                        -1, 0., -1.5, 1); 
+                                        -1, 0.005, -1.5, 1); 
 
 let furnitureModelMatrix = mat4.fromValues(1, 0, 0, 0,
                                             0, 1, 0, 0,
@@ -71,7 +71,7 @@ Programs.init();
 let distanceFieldGenerator = new DistanceFieldWebGL(256, 2);
 let voxelsReady = false;
 
-let sceneResolution = 700;
+let sceneResolution = 512;
 let sceneDistanceField = webGL2.createTexture3D(sceneResolution, sceneResolution, sceneResolution, gl.R32F, gl.RED, gl.LINEAR, gl.LINEAR, gl.FLOAT, null);
 
 
