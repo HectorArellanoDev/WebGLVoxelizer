@@ -29,10 +29,14 @@ const fsRaymarching = `#version 300 es
         return tnear;
     }
 
+    float sdBox( vec3 p, vec3 b ) {
+      vec3 q = abs(p) - b;
+      return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
+    }
 
     float sceneSDF(vec3 samplePoint) {
 
-        return texture(tData, samplePoint + vec3(0.5)).r;
+        return max(sdBox(samplePoint, vec3(0.5, 0.48, 0.5)), texture(tData, samplePoint + vec3(0.5)).r);
 
     }
 

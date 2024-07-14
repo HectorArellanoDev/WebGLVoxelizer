@@ -90,7 +90,7 @@ const fsRenderGeometry = `#version 300 es
     }
     
     vec3 calcNormal( in vec3 p ){
-        const float h = 0.02; // replace by an appropriate value
+        const float h = 0.001; // replace by an appropriate value
         const vec2 k = vec2(1.,-1.);
         return normalize( k.xyy*sceneSDF( p + k.xyy*h ) + 
                           k.yyx*sceneSDF( p + k.yyx*h ) + 

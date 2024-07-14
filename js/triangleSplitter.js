@@ -21,7 +21,7 @@ onmessage = function(e) {
         let vb = new Vector3();
         let vc = new Vector3();
 
-        const MAX_SIZE = Math.pow(2, 25);
+        const MAX_SIZE = Math.pow(2, 27);
         let result = new Float32Array(MAX_SIZE);
         let uvs = new Float32Array(MAX_SIZE);
 

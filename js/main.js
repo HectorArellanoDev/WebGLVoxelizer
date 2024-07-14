@@ -48,10 +48,11 @@ let nissanModelMatrix = mat4.fromValues(1, 0, 0, 0,
                                         0, 0, 1, 0,
                                         3, 0.015, 0, 1); 
 
-let porscheModelMatrix = mat4.fromValues(1, 0, 0, 0,
-                                        0, 1, 0, 0,
-                                        0, 0, 1, 0,
-                                        -1, 0.005, -1.5, 1); 
+let porschePosition = vec3.fromValues(-1, 0.005, -1.5);
+let porscheRotation = 0;
+
+let porscheModelMatrix = mat4.create();
+
 
 let furnitureModelMatrix = mat4.fromValues(1, 0, 0, 0,
                                             0, 1, 0, 0,
@@ -68,10 +69,10 @@ let furnitureModelViewMatrix = mat4.create();
 Programs.init();
 
 //Create the voxelizers
-let distanceFieldGenerator = new DistanceFieldWebGL(128, 1);
+let distanceFieldGenerator = new DistanceFieldWebGL(256, 2);
 let voxelsReady = false;
 
-let sceneResolution = 300;
+let sceneResolution = 400;
 let sceneDistanceField = webGL2.createTexture3D(sceneResolution, sceneResolution, sceneResolution, gl.R32F, gl.RED, gl.LINEAR, gl.LINEAR, gl.FLOAT, null);
 
 
@@ -114,6 +115,8 @@ let currentFrame = 0;
 let render = () => {
 
     currentFrame ++;
+
+    mat4.fromTranslation(porscheModelMatrix, [0.5, 0.005, -2 * Math.sin(currentFrame * 0.02)]);
 
     //Create the scene distance field
     gl.viewport(0, 0, sceneResolution, sceneResolution);
@@ -186,7 +189,7 @@ let render = () => {
     if(voxelsReady && displayDebug) {
 
         gl.useProgram(Programs.raymarcher);
-        let ss = 0.4;
+        let ss = 1;
         gl.viewport(0, 0, canvas.width * ss, canvas.height * ss);
         // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         webGL2.bindTexture(Programs.raymarcher.tData, sceneDistanceField, 0, true);
