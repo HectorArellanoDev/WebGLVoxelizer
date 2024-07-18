@@ -84,6 +84,7 @@ await loader.parse("./js/geometry/protein.glb").then(result => {
     let orderedData2 = [];
     let data = protein.geometry.position.array;
     let data2 = protein.geometry.color.array;
+    console.log(data2);
 
     let index = protein.geometry.index;
     let total = protein.geometry.index.length;
@@ -96,9 +97,9 @@ await loader.parse("./js/geometry/protein.glb").then(result => {
         let _y = data[3 * j + 1];
         let _z = data[3 * j + 2];
 
-        let _r = data2[3 * j + 0];
-        let _g = data2[3 * j + 1];
-        let _b = data2[3 * j + 2];
+        let _r = data2[4 * j + 0];
+        let _g = data2[4 * j + 1];
+        let _b = data2[4 * j + 2];
 
         minX = Math.min(minX, _x);
         minY = Math.min(minY, _y);

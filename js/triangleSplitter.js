@@ -13,7 +13,7 @@ onmessage = function(e) {
     // this is useful to update the positions for skinned meshes.
     // Triangles should be splitting by at least the resolution of the voxelization
     ///////////////////////////////////////////////////////////////
-    function splitTriangles(p, size, d = 1 / Math.pow(2, 6), dDiscard = 2.) {
+    function splitTriangles(p, c, size, d = 1 / Math.pow(2, 6), dDiscard = 2.) {
         let v1 = new Vector3();
         let v2 = new Vector3();
         let v3 = new Vector3();
@@ -22,9 +22,18 @@ onmessage = function(e) {
         let vb = new Vector3();
         let vc = new Vector3();
 
-        const MAX_SIZE = Math.pow(2, 27);
+
+        let c1 = new Vector3();
+        let c2 = new Vector3();
+        let c3 = new Vector3();
+    
+        let ca = new Vector3();
+        let cb = new Vector3();
+        let cc = new Vector3();
+
+        const MAX_SIZE = Math.pow(2, 25);
         let result = new Float32Array(MAX_SIZE);
-        let uvs = new Float32Array(MAX_SIZE);
+        let colors = new Float32Array(MAX_SIZE);
 
         let bigTriangles = [];
         let requireSplitting = false;
@@ -38,6 +47,10 @@ onmessage = function(e) {
             v1.set(p[i + 0], p[i + 1], p[i + 2]);
             v2.set(p[i + 3], p[i + 4], p[i + 5]);
             v3.set(p[i + 6], p[i + 7], p[i + 8]);
+
+            c1.set(c[i + 0], c[i + 1], c[i + 2]);
+            c2.set(c[i + 3], c[i + 4], c[i + 5]);
+            c3.set(c[i + 6], c[i + 7], c[i + 8]);
 
             let d1 = v1.distanceTo(v2);
             let d2 = v2.distanceTo(v3);
@@ -61,19 +74,33 @@ onmessage = function(e) {
                     va = va.clone().add(v2).multiplyScalar(0.5);
                     vb = vb.clone().add(v3).multiplyScalar(0.5);
                     vc = vc.clone().add(v1).multiplyScalar(0.5);
+
+
+                    ca.set(c[i + 0], c[i + 1], c[i + 2]);
+                    cb.set(c[i + 3], c[i + 4], c[i + 5]);
+                    cc.set(c[i + 6], c[i + 7], c[i + 8]);
+    
+                    ca = ca.clone().add(c2).multiplyScalar(0.5);
+                    cb = cb.clone().add(c3).multiplyScalar(0.5);
+                    cc = cc.clone().add(c1).multiplyScalar(0.5);
+
     
                     result.set([v1.x, v1.y, v1.z, va.x, va.y, va.z, vc.x, vc.y, vc.z], newPositionsSize);
+                    colors.set([c1.x, c1.y, c1.z, ca.x, ca.y, ca.z, cc.x, cc.y, cc.z], newPositionsSize);
                     newPositionsSize += 9;
                     result.set([va.x, va.y, va.z, v2.x, v2.y, v2.z, vb.x, vb.y, vb.z], newPositionsSize);
+                    colors.set([ca.x, ca.y, ca.z, c2.x, c2.y, c2.z, cb.x, cb.y, cb.z], newPositionsSize);
                     newPositionsSize += 9;
                     result.set([vb.x, vb.y, vb.z, v3.x, v3.y, v3.z, vc.x, vc.y, vc.z], newPositionsSize);
+                    colors.set([cb.x, cb.y, cb.z, c3.x, c3.y, c3.z, cc.x, cc.y, cc.z], newPositionsSize);
                     newPositionsSize += 9;
                     result.set([va.x, va.y, va.z, vb.x, vb.y, vb.z, vc.x, vc.y, vc.z], newPositionsSize);
+                    colors.set([ca.x, ca.y, ca.z, cb.x, cb.y, cb.z, cc.x, cc.y, cc.z], newPositionsSize);
                     newPositionsSize += 9;
 
                 } else {
-
                     result.set([v1.x, v1.y, v1.z, v2.x, v2.y, v2.z, v3.x, v3.y, v3.z], newPositionsSize);
+                    colors.set([c1.x, c1.y, c1.z, c2.x, c2.y, c2.z, c3.x, c3.y, c3.z], newPositionsSize);
                     newPositionsSize += 9;
                 }
 
@@ -85,6 +112,7 @@ onmessage = function(e) {
 
         return {
             result,
+            colors,
             bigTriangles,
             requireSplitting,
             newPositionsSize,
@@ -112,11 +140,13 @@ onmessage = function(e) {
         let bigTriangles = [];
         let newSize = positions.length;
         let positionsData = new Float32Array(positions);
+        let colorsData = new Float32Array(colors);
         while (split) {
-            let data = splitTriangles(positionsData, newSize);
+            let data = splitTriangles(positionsData, colorsData, newSize);
             newSize = data.newPositionsSize;
             check++;
             positionsData = data.result;
+            colorsData = data.colors;
             if (data.bigTriangles.length > 0) {
                 bigTriangles = data.bigTriangles;
                 // console.log("triangles discarded by size: " + bigTriangles.length / 9);
@@ -127,7 +157,6 @@ onmessage = function(e) {
         positionsData = positionsData.map(pos => pos * scale);
         bigTriangles = bigTriangles.map(pos => pos * scale);
 
-
         let amountOfTriangles = newSize / 9;
         let textureSize = Math.ceil(Math.sqrt(newSize / 3));
         bigTriangles = new Float32Array(bigTriangles);
@@ -137,7 +166,7 @@ onmessage = function(e) {
         // console.log("texture size: " + textureSize);
         // console.log("-----------------------------")
 
-        return {id, positionsData, bigTriangles, amountOfTriangles, textureSize};
+        return {id, positionsData, colorsData, bigTriangles, amountOfTriangles, textureSize};
     }
 
 

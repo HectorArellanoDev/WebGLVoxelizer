@@ -119,7 +119,7 @@ const fsRenderGeometry = `#version 300 es
 
         vec4 ao = getAmbientOcclusion(pos + 0.01 * vNormal, vNormal);
     
-        float ambientTerm = .1;
+        float ambientTerm = .0;
     
         float lightAngle = 0.;
         vec3 lightPosition = 2. * vec3(cos(lightAngle), 1., sin(lightAngle));
@@ -147,7 +147,7 @@ const fsRenderGeometry = `#version 300 es
 
         //For the matcap
         vec3 e = normalize(cameraPosition - vPos);
-        vec3 r = reflect(e, vNormal);
+        vec3 r = reflect(-e, vNormal);
         float m = 2.0 * sqrt(
         pow(r.x, 2.0) +
         pow(r.y, 2.0) +
@@ -159,7 +159,7 @@ const fsRenderGeometry = `#version 300 es
         vec4 matcapColor = texture(tMatcap, st);
 
 
-        vec4 coneTracing = voxelTracing(pos, vNormal, 0.3);
+        vec4 coneTracing = voxelTracing(pos + 0.02 * vNormal, r, .01);
     
         float diffuse = max(dot(vNormal, lightDirection), 0.) * (1. - ambientTerm) + ambientTerm;
         float shadowTerm = (ambientTerm + (1. - ambientTerm) * shadows);

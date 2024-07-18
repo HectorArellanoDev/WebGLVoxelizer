@@ -46,9 +46,11 @@ class DistanceFieldWebGL {
 
             this.actionHandlerMap[id] = response => {
 
+                console.log(response);
+
                 let positionsTexture = webGL2.createTexture2D(response.textureSize, response.textureSize, gl.RGB32F, gl.RGB, gl.NEAREST, gl.NEAREST, gl.FLOAT, response.positionsData);
                 
-                let colorsTexture = webGL2.createTexture2D(response.textureSize, response.textureSize, gl.RGB32F, gl.RGB, gl.NEAREST, gl.NEAREST, gl.FLOAT, response.colorData);
+                let colorsTexture = webGL2.createTexture2D(response.textureSize, response.textureSize, gl.RGB32F, gl.RGB, gl.NEAREST, gl.NEAREST, gl.FLOAT, response.colorsData);
 
 
                 let voxelsTexture = webGL2.createTexture2D(this.voxelsTextureSize, this.voxelsTextureSize, gl.RGBA32F, gl.RGBA, gl.NEAREST, gl.NEAREST, gl.FLOAT, null);
@@ -87,7 +89,7 @@ class DistanceFieldWebGL {
 
 
 
-
+                this.ringsToVisit = 1;
                 gl.useProgram(Programs.voxelizerColor);
                 gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, coneTracing);
                 gl.disable(gl.DEPTH_TEST);
@@ -97,6 +99,8 @@ class DistanceFieldWebGL {
                 gl.clearColor(0, 0, 0, 0);
 
                 webGL2.bindTexture(Programs.voxelizerColor.tPositions, positionsTexture, 0);
+                webGL2.bindTexture(Programs.voxelizerColor.tColor, colorsTexture, 1);
+
                 gl.uniform3f(Programs.voxelizerColor.uSize, this.voxelResolution, this.voxelResolution, this.voxelResolution);
                 gl.uniform3f(Programs.voxelizerColor.uMin, geom.min.x, geom.min.y, geom.min.z);
                 gl.uniform1f(Programs.voxelizerColor.uRings, this.ringsToVisit);

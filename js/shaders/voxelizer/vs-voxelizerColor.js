@@ -172,7 +172,7 @@ void main() {
 
 	vec3 averagePosition = uPoints > 0. ? tri0 : ( tri0 + tri1 + tri2 ) / 3.;
 	vec3 averageColor = uPoints > 0. ? color1 : ( color1 + color2 + color3 ) / 3.;
-
+	averageColor /= 256.;
 
 	ivec3 gridCellCoordinate = GetSdfCoordinates( averagePosition ) + offset;
 	vec3 cellPosition = GetSdfCellPosition( vec3(gridCellCoordinate) );

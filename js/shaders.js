@@ -76,6 +76,7 @@ export function init() {
 
     voxelizerColor = webGL2.generateProgram(vsVoxelizerColor, fsColor);
     voxelizerColor.tPositions = gl.getUniformLocation(voxelizerColor, "tPositions");
+    voxelizerColor.tColor = gl.getUniformLocation(voxelizerColor, "tColor");
     voxelizerColor.uSize = gl.getUniformLocation(voxelizerColor, "uSize");
     voxelizerColor.uMin = gl.getUniformLocation(voxelizerColor, "uMin");
     voxelizerColor.uScaleVoxel = gl.getUniformLocation(voxelizerColor, "uScaleVoxel");
