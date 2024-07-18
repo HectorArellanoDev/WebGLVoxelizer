@@ -3,6 +3,8 @@ import * as webGL2              from './webGL/webGL2.js';
 import {vsRenderGeometry}       from './shaders/general/vs-renderGeometry.js'
 import {fsColor}                from './shaders/general/fs-simpleColor.js';
 import {vsVoxelizer}            from './shaders/voxelizer/vs-voxelizer.js';
+import {vsVoxelizerColor}            from './shaders/voxelizer/vs-voxelizerColor.js';
+
 import {vsQuad}                 from './shaders/general/vs-quad.js';
 import {fsTexture}              from './shaders/general/fs-simpleTexture.js';
 import {fsFilter}               from './shaders/voxelizer/fs-filter.js';
@@ -12,6 +14,7 @@ import { fsArrayTo3D }          from './shaders/voxelizer/fs-array2Dto3D.js';
 import { fsRaymarching }        from './shaders/general/fs-raymarching.js';
 import { fsSceneDF }            from './shaders/voxelizer/fs-sceneDF.js';
 import { fsRenderGeometry }     from './shaders/general/fs-renderGeometry.js';
+import { fsBlur }               from './shaders/general/fs-blur.js';
 
 
 
@@ -22,6 +25,7 @@ import { fsRenderGeometry }     from './shaders/general/fs-renderGeometry.js';
 
 export let renderGeometry;
 export let voxelizer;
+export let voxelizerColor;
 export let texture;
 export let filterVoxels;
 export let jumpFlood;
@@ -29,6 +33,7 @@ export let jumpFloodDistance;
 export let arrayTo3D;
 export let raymarcher;
 export let sceneDFShader;
+export let blur;
 
 
 //=======================================================================================================
@@ -40,6 +45,8 @@ export function init() {
     renderGeometry = webGL2.generateProgram(vsRenderGeometry, fsRenderGeometry);
     renderGeometry.position = gl.getAttribLocation(renderGeometry, "position");
     renderGeometry.normal = gl.getAttribLocation(renderGeometry, "normal");
+    renderGeometry.color = gl.getAttribLocation(renderGeometry, "color");
+
     renderGeometry.modelMatrix = gl.getUniformLocation(renderGeometry, "modelMatrix");
     renderGeometry.modelViewMatrix = gl.getUniformLocation(renderGeometry, "modelViewMatrix");
     renderGeometry.perspectiveMatrix = gl.getUniformLocation(renderGeometry, "perspectiveMatrix");
@@ -50,6 +57,9 @@ export function init() {
     renderGeometry.cameraPosition = gl.getUniformLocation(renderGeometry, "cameraPosition");
     renderGeometry.useReflection = gl.getUniformLocation(renderGeometry, "useReflection");
     renderGeometry.uReady = gl.getUniformLocation(renderGeometry, "uReady");
+    renderGeometry.tMatcap = gl.getUniformLocation(renderGeometry, "tMatcap");
+    renderGeometry.tCone = gl.getUniformLocation(renderGeometry, "tCone");
+
 
 
     
@@ -62,6 +72,17 @@ export function init() {
     voxelizer.uBucketData = gl.getUniformLocation(voxelizer, "uBucketData");
     voxelizer.uPoints = gl.getUniformLocation(voxelizer, "uPoints");
     voxelizer.uRings = gl.getUniformLocation(voxelizer, "uRings");
+
+
+    voxelizerColor = webGL2.generateProgram(vsVoxelizerColor, fsColor);
+    voxelizerColor.tPositions = gl.getUniformLocation(voxelizerColor, "tPositions");
+    voxelizerColor.uSize = gl.getUniformLocation(voxelizerColor, "uSize");
+    voxelizerColor.uMin = gl.getUniformLocation(voxelizerColor, "uMin");
+    voxelizerColor.uScaleVoxel = gl.getUniformLocation(voxelizerColor, "uScaleVoxel");
+    voxelizerColor.uDataTextureSize = gl.getUniformLocation(voxelizerColor, "uDataTextureSize");
+    voxelizerColor.uBucketData = gl.getUniformLocation(voxelizerColor, "uBucketData");
+    voxelizerColor.uPoints = gl.getUniformLocation(voxelizerColor, "uPoints");
+    voxelizerColor.uRings = gl.getUniformLocation(voxelizerColor, "uRings");
 
 
     texture = webGL2.generateProgram(vsQuad, fsTexture);
@@ -124,5 +145,12 @@ export function init() {
     sceneDFShader.tDistance5 = gl.getUniformLocation(sceneDFShader, "tDistance5");
     sceneDFShader.uData5 = gl.getUniformLocation(sceneDFShader, "uData5");
     sceneDFShader.uMatrix5 = gl.getUniformLocation(sceneDFShader, "uMatrix5");
+
+
+    blur = webGL2.generateProgram(vsQuad, fsBlur);
+    blur.tData = gl.getUniformLocation(blur, "tData");
+    blur.tDepth = gl.getUniformLocation(blur, "tDepth");
+    blur.uAxis = gl.getUniformLocation(blur, "uAxis");
+
 
 }

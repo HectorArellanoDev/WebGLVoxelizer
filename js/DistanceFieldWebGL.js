@@ -35,22 +35,29 @@ class DistanceFieldWebGL {
     prepareAndGetMeshData(geom, id) {
 
         let positions = new Float32Array(geom.positionArray);
+        let colors = new Float32Array(geom.colorArray);
         let scale = geom.scale;
 
         let worker = new Worker("./js/triangleSplitter.js");
 
         let workerResult = new Promise((resolve, reject) => {
 
-            worker.postMessage([id, positions, scale]);
+            worker.postMessage([id, positions, colors, scale]);
 
             this.actionHandlerMap[id] = response => {
 
                 let positionsTexture = webGL2.createTexture2D(response.textureSize, response.textureSize, gl.RGB32F, gl.RGB, gl.NEAREST, gl.NEAREST, gl.FLOAT, response.positionsData);
+                
+                let colorsTexture = webGL2.createTexture2D(response.textureSize, response.textureSize, gl.RGB32F, gl.RGB, gl.NEAREST, gl.NEAREST, gl.FLOAT, response.colorData);
+
+
                 let voxelsTexture = webGL2.createTexture2D(this.voxelsTextureSize, this.voxelsTextureSize, gl.RGBA32F, gl.RGBA, gl.NEAREST, gl.NEAREST, gl.FLOAT, null);
                 let voxelsTexture2 = webGL2.createTexture2D(this.voxelsTextureSize, this.voxelsTextureSize, gl.RGBA32F, gl.RGBA, gl.NEAREST, gl.NEAREST, gl.FLOAT, null);
+                let voxelConeTracing = webGL2.createTexture2D(this.voxelsTextureSize, this.voxelsTextureSize, gl.RGBA32F, gl.RGBA, gl.NEAREST, gl.NEAREST, gl.FLOAT, null);
 
                 let voxels = webGL2.createDrawFramebuffer(voxelsTexture);
                 let voxels2 = webGL2.createDrawFramebuffer(voxelsTexture2);
+                let coneTracing = webGL2.createDrawFramebuffer(voxelConeTracing);
 
                 gl.viewport(0, 0, this.voxelsTextureSize, this.voxelsTextureSize);
 
@@ -77,6 +84,31 @@ class DistanceFieldWebGL {
 
                 gl.drawArraysInstanced(gl.POINTS, 0, response.amountOfTriangles, Math.pow(2 * this.ringsToVisit + 1, 3));
                 gl.disable(gl.BLEND);
+
+
+
+
+                gl.useProgram(Programs.voxelizerColor);
+                gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, coneTracing);
+                gl.disable(gl.DEPTH_TEST);
+
+
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                gl.clearColor(0, 0, 0, 0);
+
+                webGL2.bindTexture(Programs.voxelizerColor.tPositions, positionsTexture, 0);
+                gl.uniform3f(Programs.voxelizerColor.uSize, this.voxelResolution, this.voxelResolution, this.voxelResolution);
+                gl.uniform3f(Programs.voxelizerColor.uMin, geom.min.x, geom.min.y, geom.min.z);
+                gl.uniform1f(Programs.voxelizerColor.uRings, this.ringsToVisit);
+                gl.uniform1f(Programs.voxelizerColor.uScaleVoxel, geom.scale);
+                gl.uniform1f(Programs.voxelizerColor.uDataTextureSize, response.textureSize);
+                gl.uniform3f(Programs.voxelizerColor.uBucketData, this.voxelsTextureSize, this.voxelResolution, this.layerSize);
+                gl.uniform1f(Programs.voxelizerColor.uPoints, 0);
+                gl.drawArraysInstanced(gl.POINTS, 0, response.amountOfTriangles, Math.pow(2 * this.ringsToVisit + 1, 3));
+
+
+
+
 
 
                 //Filter the data
@@ -140,13 +172,42 @@ class DistanceFieldWebGL {
                     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
                     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer3D);
+                    gl.deleteFramebuffer(framebuffer3D);
                 }
+
+
+                //Save the distance field in a 3d texture
+                let coneTexture3D = webGL2.createTexture3D(this.voxelResolution, this.voxelResolution, this.voxelResolution, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
+
+   
+                gl.useProgram(Programs.arrayTo3D);
+                gl.viewport(0, 0, this.voxelResolution, this.voxelResolution);
+                webGL2.bindTexture(Programs.arrayTo3D.tData, voxelConeTracing, 0);
+                gl.uniform3f(Programs.arrayTo3D.voxelData, this.voxelsTextureSize, this.voxelResolution, this.layerSize);
+
+                depth = coneTexture3D.depth / 4;
+                for(let i = 0; i < depth; i ++) {
+                    let framebuffer3D = webGL2.createFramebuffer3D(coneTexture3D, [4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3]);
+                    gl.uniform4f(Programs.arrayTo3D.indices, 4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
+                    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer3D);
+                    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer3D);
+                    gl.deleteFramebuffer(framebuffer3D);
+                }
+
+
+                gl.bindTexture(gl.TEXTURE_3D, coneTexture3D);
+                gl.generateMipmap(gl.TEXTURE_3D);
+                gl.bindTexture(gl.TEXTURE_3D, null);
 
                 let result = {
                     id: response.id,
                     positionsTexture,
                     voxelsTexture: input,
                     distanceFieldTexture,
+                    coneTexture: voxelConeTracing,
+                    coneTexture3D,
                     voxelsTextureSize: this.voxelsTextureSize,
                     amountOfTriangles: response.amountOfTriangles
                 }

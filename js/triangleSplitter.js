@@ -1,8 +1,9 @@
 onmessage = function(e) {
     let id = e.data[0];
     let positions = e.data[1];
-    let scale = e.data[2];
-    postMessage(getVoxelMeshData(id, positions, scale));
+    let colors = e.data[2];
+    let scale = e.data[3];
+    postMessage(getVoxelMeshData(id, positions, colors, scale));
 
 }
 
@@ -98,7 +99,7 @@ onmessage = function(e) {
     // save the new vertex position to voxelize since the later
     // will use a texture.
     ///////////////////////////////////////////////////////////////
-    function getVoxelMeshData(id, positions, scale) {
+    function getVoxelMeshData(id, positions, colors, scale) {
 
         // console.log("the scale is: " + scale);
 

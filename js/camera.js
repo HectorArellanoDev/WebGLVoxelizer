@@ -48,7 +48,7 @@ class Camera {
 
        this.ratio = radius;
 
-        mat4.perspective(this.perspectiveMatrix, perspective * Math.PI / 180, aspectRatio, 0.01, 100);
+        mat4.perspective(this.perspectiveMatrix, perspective * Math.PI / 180, aspectRatio, 0.01, 1000);
 
         if (this.down) {
             this.alpha -= 0.1 * (this.currentMouseY - this.prevMouseY) * Math.PI / 180;

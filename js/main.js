@@ -5,6 +5,8 @@ import {Camera}                 from './camera.js';
 
 import {DistanceFieldWebGL}         from './DistanceFieldWebGL.js';
 
+import {GLTFLoader}               from './GLTFLoader.js';
+
 let canvas = document.querySelector("#canvas3D");
 canvas.height = window.innerHeight;
 canvas.width = window.innerWidth;
@@ -13,16 +15,41 @@ canvas.style.height = String(canvas.height) + "px";
 webGL2.setContext(canvas);
 
 let camera = new Camera(canvas);
-let cameraDistance = 20;
+let cameraDistance = 100;
 
 let displayDebug = false;
 
-window.addEventListener("resize", () => {
+
+//Textures for postprocessing
+let colorTexture, depthTexture,  helpTexture;
+let geomFramebuffer, postFramebuffer1, postFramebuffer2;
+
+window.addEventListener("resize", resize)
+
+function resize() {
     canvas.height = window.innerHeight;
     canvas.width = window.innerWidth;
     canvas.style.width = String(canvas.width) + "px";
     canvas.style.height = String(canvas.height) + "px";
-})
+
+    gl.deleteTexture(colorTexture);
+    gl.deleteTexture(depthTexture);
+    gl.deleteTexture(helpTexture);
+
+    gl.deleteFramebuffer(geomFramebuffer);
+    gl.deleteFramebuffer(postFramebuffer1);
+    gl.deleteFramebuffer(postFramebuffer2);
+
+    colorTexture = webGL2.createTexture2D(canvas.width, canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
+    depthTexture = webGL2.createTexture2D(canvas.width, canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
+    helpTexture = webGL2.createTexture2D(canvas.width, canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
+
+    geomFramebuffer = webGL2.createDrawFramebuffer([colorTexture, depthTexture], true);
+    postFramebuffer1 = webGL2.createDrawFramebuffer(helpTexture);
+    postFramebuffer2 = webGL2.createDrawFramebuffer(colorTexture);
+}
+
+resize();
 
 window.addEventListener("keypress", e => {
     if(e.keyCode === 100) displayDebug = !displayDebug;
@@ -30,71 +57,117 @@ window.addEventListener("keypress", e => {
 
 window.addEventListener("wheel", event => {
     cameraDistance += event.deltaY * 0.01;
-    cameraDistance = Math.min(30, Math.max(cameraDistance, 10));
+    cameraDistance = Math.min(300, Math.max(cameraDistance, 10));
 });
 
-let nissan = await webGL2.loadGeometry("./js/geometry/carscene_nissan.json");
-let nissanWheels = await webGL2.loadGeometry("./js/geometry/carscene_wheels.json");
-let porsche = await webGL2.loadGeometry("./js/geometry/carscene_porsche.json");
-let ground = await webGL2.loadGeometry("./js/geometry/carscene_ground.json");
-let room = await webGL2.loadGeometry("./js/geometry/carscene_room.json");
-let furniture = await webGL2.loadGeometry("./js/geometry/carscene_furniture.json", true)
-// let ceiling = await webGL2.loadGeometry("./js/geometry/carscene_ceiling.json");
 
+let loader = new GLTFLoader();
+let protein = null;
+let waitForGeometry = Promise.create();
 let identityMatrix = mat4.create();
 
-let nissanModelMatrix = mat4.fromValues(1, 0, 0, 0,
-                                        0, 1, 0, 0,
-                                        0, 0, 1, 0,
-                                        3, 0.015, 0, 1); 
+await loader.parse("./js/geometry/protein.glb").then(result => {
 
-let porschePosition = vec3.fromValues(-1, 0.005, -1.5);
-let porscheRotation = 0;
+    protein = result[0][0];
 
-let porscheModelMatrix = mat4.create();
+    console.log(protein);
 
+    let minX = Infinity;
+    let minY = Infinity;
+    let minZ = Infinity;
 
-let furnitureModelMatrix = mat4.fromValues(1, 0, 0, 0,
-                                            0, 1, 0, 0,
-                                            0, 0, 1, 0,
-                                            -2.8, 0.4, 3, 1); 
-                                                    
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    let maxZ = -Infinity;
 
+    let orderedData = [];
+    let orderedData2 = [];
+    let data = protein.geometry.position.array;
+    let data2 = protein.geometry.color.array;
 
-let nissanModelViewMatrix = mat4.create();
-let porscheModelViewMatrix = mat4.create();
-let furnitureModelViewMatrix = mat4.create();
+    let index = protein.geometry.index;
+    let total = protein.geometry.index.length;
+    let sum = 1;
+
+    for(let i = 0; i < total; i += sum) {
+        let j = index[i];
+
+        let _x = data[3 * j + 0];
+        let _y = data[3 * j + 1];
+        let _z = data[3 * j + 2];
+
+        let _r = data2[3 * j + 0];
+        let _g = data2[3 * j + 1];
+        let _b = data2[3 * j + 2];
+
+        minX = Math.min(minX, _x);
+        minY = Math.min(minY, _y);
+        minZ = Math.min(minZ, _z);
+
+        maxX = Math.max(maxX, _x);
+        maxY = Math.max(maxY, _y);
+        maxZ = Math.max(maxZ, _z);
+
+        orderedData.push(_x);
+        orderedData.push(_y);
+        orderedData.push(_z);
+
+        orderedData2.push(_r);
+        orderedData2.push(_g);
+        orderedData2.push(_b);
+    }
+
+    protein.geometry.position = webGL2.createBuffer(protein.geometry.position.array);
+    protein.geometry.normal = webGL2.createBuffer(protein.geometry.normal.array);
+    protein.geometry.color = webGL2.createBuffer(protein.geometry.color.array);
+    protein.geometry.totalIndices = index.length;
+    protein.geometry.index = webGL2.createIndicesBuffer(protein.geometry.index);
+    protein.geometry.positionArray = new Float32Array(orderedData);
+    protein.geometry.colorArray = new Float32Array(orderedData2);
+    protein.geometry.min = {x: minX, y: minY, z: minZ};
+    protein.geometry.max = {x: maxX, y: maxY, z: maxZ};
+    protein.geometry.scale = Math.max(maxX - minX, Math.max(maxY - minY, maxZ - minZ));
+
+    waitForGeometry.resolve();
+});
+
+await waitForGeometry;
+console.log(protein);
+
 
 //Initiate the shaders programs
 Programs.init();
+
+async function loadImageBitmap(url) {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return await createImageBitmap(blob, { colorSpaceConversion: 'none' });
+}
+
+
+async function textureFromImage(url) {
+    const source = await loadImageBitmap(url);
+    return webGL2.createTexture2D(source.width, source.height, gl.RGBA8, gl.RGBA, gl.LINEAR, gl.LINEAR, gl.UNSIGNED_BYTE, source);
+}
+
+let matcapTexture = await textureFromImage('./js/images/matcapBG1.jpeg');
+
 
 //Create the voxelizers
 let distanceFieldGenerator = new DistanceFieldWebGL(256, 2);
 let voxelsReady = false;
 
-let sceneResolution = 400;
-let sceneDistanceField = webGL2.createTexture3D(sceneResolution, sceneResolution, sceneResolution, gl.R32F, gl.RED, gl.LINEAR, gl.LINEAR, gl.FLOAT, null);
-
-
-Promise.all([distanceFieldGenerator.generate("furniture", furniture),
-             distanceFieldGenerator.generate("nissan", nissan), 
-             distanceFieldGenerator.generate("porsche", porsche),
-             distanceFieldGenerator.generate("nissanWheels", nissanWheels),
-             distanceFieldGenerator.generate("room", room),
+Promise.all([distanceFieldGenerator.generate("protein", protein.geometry)
             ]).then(response => {
 
-
-        nissan._voxelData = response.filter(e => e.id === "nissan")[0];
-        porsche._voxelData = response.filter(e => e.id === "porsche")[0];
-        nissanWheels._voxelData = response.filter(e => e.id === "nissanWheels")[0];
-        room._voxelData = response.filter(e => e.id === "room")[0];
-        furniture._voxelData = response.filter(e => e.id === "furniture")[0];
-
+        protein.geometry._voxelData = response.filter(e => e.id === "protein")[0];
+        console.log(protein.geometry);
         voxelsReady = true;
 })
 
 
 let renderGeometry = (modelViewMatrix, modelMatrix, geometry) => {
+
     gl.uniformMatrix4fv(Programs.renderGeometry.modelViewMatrix, false, modelViewMatrix);
     gl.uniformMatrix4fv(Programs.renderGeometry.modelMatrix, false, modelMatrix);
 
@@ -106,7 +179,21 @@ let renderGeometry = (modelViewMatrix, modelMatrix, geometry) => {
     gl.bindBuffer(gl.ARRAY_BUFFER, geometry.normal);
     gl.vertexAttribPointer(Programs.renderGeometry.normal, 3, gl.FLOAT, false, 0, 0);
 
-    gl.drawArrays(gl.TRIANGLES, 0, geometry.length);
+    gl.enableVertexAttribArray(Programs.renderGeometry.color);
+    gl.bindBuffer(gl.ARRAY_BUFFER, geometry.color);
+    gl.vertexAttribPointer(Programs.renderGeometry.color, 4, gl.FLOAT, false, 0, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, geometry.index);
+
+    gl.drawElements(gl.TRIANGLES, geometry.totalIndices, gl.UNSIGNED_INT, 0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+    
+    gl.disableVertexAttribArray(Programs.renderGeometry.position);
+    gl.disableVertexAttribArray(Programs.renderGeometry.normal);
+    gl.disableVertexAttribArray(Programs.renderGeometry.color);
+
+
 }
 
 
@@ -116,75 +203,78 @@ let render = () => {
 
     currentFrame ++;
 
-    mat4.fromTranslation(porscheModelMatrix, [0.5, 0.005, -2 * Math.sin(currentFrame * 0.02)]);
-
-    //Create the scene distance field
-    gl.viewport(0, 0, sceneResolution, sceneResolution);
-    gl.useProgram(Programs.sceneDFShader);
-    gl.uniform1f(Programs.sceneDFShader.voxelResolution, sceneResolution);
-    gl.uniform4f(Programs.sceneDFShader.uData0, -7, -1, -7, 14);
-
-    webGL2.bindTexture(Programs.sceneDFShader.tDistance1, room._voxelData.distanceFieldTexture, 0, true);
-    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix1, false, identityMatrix);
-    gl.uniform4f(Programs.sceneDFShader.uData1, room.min.x, room.min.y, room.min.z, room.scale);
-
-    webGL2.bindTexture(Programs.sceneDFShader.tDistance2, porsche._voxelData.distanceFieldTexture, 1, true);
-    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix2, false, porscheModelMatrix);
-    gl.uniform4f(Programs.sceneDFShader.uData2, porsche.min.x, porsche.min.y, porsche.min.z, porsche.scale);
-
-    webGL2.bindTexture(Programs.sceneDFShader.tDistance3, nissan._voxelData.distanceFieldTexture, 2, true);
-    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix3, false, nissanModelMatrix);
-    gl.uniform4f(Programs.sceneDFShader.uData3, nissan.min.x, nissan.min.y, nissan.min.z, nissan.scale);
-
-    webGL2.bindTexture(Programs.sceneDFShader.tDistance4, nissanWheels._voxelData.distanceFieldTexture, 3, true);
-    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix4, false, nissanModelMatrix);
-    gl.uniform4f(Programs.sceneDFShader.uData4, nissanWheels.min.x, nissanWheels.min.y, nissanWheels.min.z, nissanWheels.scale);
-
-    webGL2.bindTexture(Programs.sceneDFShader.tDistance5, furniture._voxelData.distanceFieldTexture, 4, true);
-    gl.uniformMatrix4fv(Programs.sceneDFShader.uMatrix5, false, furnitureModelMatrix);
-    gl.uniform4f(Programs.sceneDFShader.uData5, furniture.min.x, furniture.min.y, furniture.min.z, furniture.scale);
-
-
-    let depth = sceneResolution / 4;
-    for(let i = 0; i < depth; i ++) {
-        let framebuffer3D = webGL2.createFramebuffer3D(sceneDistanceField, [4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3]);
-        gl.uniform4f(Programs.sceneDFShader.indices, 4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3);
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, framebuffer3D);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-        gl.deleteFramebuffer(framebuffer3D);
-    }
-
     requestAnimationFrame(render);
     camera.updateCamera(35, canvas.width / canvas.height, cameraDistance);
 
-    mat4.multiply(nissanModelViewMatrix, camera.cameraTransformMatrix, nissanModelMatrix);
-    mat4.multiply(porscheModelViewMatrix, camera.cameraTransformMatrix, porscheModelMatrix);
-    mat4.multiply(furnitureModelViewMatrix, camera.cameraTransformMatrix, furnitureModelMatrix);
-
     gl.useProgram(Programs.renderGeometry);
     gl.uniformMatrix4fv(Programs.renderGeometry.perspectiveMatrix, false, camera.perspectiveMatrix);
-    gl.uniform4f(Programs.renderGeometry.sceneData, -7, -1, -7, 14);
+    gl.uniform4f(Programs.renderGeometry.sceneData, -23.199684143066406, -21.650390625, -25.683975219726562, 54.35630416870117);
+    gl.uniform3f(Programs.renderGeometry.cameraPosition, camera.position[0],camera.position[1], camera.position[2]);
     gl.uniform1f(Programs.renderGeometry.uReady, Number(voxelsReady));
     gl.uniform1f(Programs.renderGeometry.uAlpha, 1);
     gl.uniform1f(Programs.renderGeometry.useReflection, 0);
     gl.uniform1f(Programs.renderGeometry.time, currentFrame * 0.01);
 
-    webGL2.bindTexture(Programs.renderGeometry.tScene, sceneDistanceField, 0, true);
+    webGL2.bindTexture(Programs.renderGeometry.tScene, protein.geometry._voxelData.distanceFieldTexture, 0, true);
+    webGL2.bindTexture(Programs.renderGeometry.tMatcap, matcapTexture, 1);
+    webGL2.bindTexture(Programs.renderGeometry.tCone, protein.geometry._voxelData.coneTexture3D, 2, true);
 
-    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, geomFramebuffer);
     gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0.94, 0.94, 0.94, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);   
 
-    renderGeometry(nissanModelViewMatrix, nissanModelMatrix, nissan);
-    renderGeometry(nissanModelViewMatrix, nissanModelMatrix, nissanWheels);
-    renderGeometry(porscheModelViewMatrix, porscheModelMatrix, porsche);
-    renderGeometry(furnitureModelViewMatrix, furnitureModelMatrix, furniture);
-    renderGeometry(camera.cameraTransformMatrix, identityMatrix, room);
-    renderGeometry(camera.cameraTransformMatrix, identityMatrix, ground);
+    renderGeometry(camera.cameraTransformMatrix, identityMatrix, protein.geometry);
 
-    // renderGeometry(camera.cameraTransformMatrix, ceiling);
+    gl.bindTexture(gl.TEXTURE_2D, colorTexture);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+
+    gl.disable(gl.CULL_FACE);
+    gl.disable(gl.DEPTH_TEST);
+
+
+    // //Render results in the screen
+    // gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, postFramebuffer1);
+    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // gl.clearColor(0, 0, 0, 0);
+    // gl.useProgram(Programs.blur);
+    // webGL2.bindTexture(Programs.blur.tData, colorTexture, 0);
+    // webGL2.bindTexture(Programs.blur.tDepth, depthTexture, 1);
+    // gl.uniform2f(Programs.blur.uAxis, 1 / 1024., 0);
+    // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+
+    // gl.bindTexture(gl.TEXTURE_2D, helpTexture);
+    // gl.generateMipmap(gl.TEXTURE_2D);
+    // gl.bindTexture(gl.TEXTURE_2D, null);
+
+
+    // gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    // gl.clearColor(0, 0, 0, 0);
+    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // webGL2.bindTexture(Programs.blur.tData, helpTexture, 0);
+    // webGL2.bindTexture(Programs.blur.tDepth, depthTexture, 1);
+    // gl.uniform2f(Programs.blur.uAxis, 0, 1 / 1024);
+    // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+
+
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    gl.clearColor(0, 0, 0, 0);
+    gl.useProgram(Programs.texture);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    webGL2.bindTexture(Programs.texture.tData, colorTexture, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     if(voxelsReady && displayDebug) {
 
@@ -192,7 +282,7 @@ let render = () => {
         let ss = 1;
         gl.viewport(0, 0, canvas.width * ss, canvas.height * ss);
         // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        webGL2.bindTexture(Programs.raymarcher.tData, sceneDistanceField, 0, true);
+        webGL2.bindTexture(Programs.raymarcher.tData, protein.geometry._voxelData.distanceFieldTexture, 0, true);
         gl.uniformMatrix4fv(Programs.raymarcher.cameraOrientation, false, camera.orientationMatrix);
         gl.uniform2f(Programs.raymarcher.resolution, canvas.width * ss, canvas.height * ss);
         gl.uniform3f(Programs.raymarcher.cameraPosition, camera.position[0], camera.position[1], camera.position[2]);
@@ -201,7 +291,7 @@ let render = () => {
         gl.disable(gl.BLEND);
     }
 
-    gl.disable(gl.DEPTH_TEST);
+
 }
 
 render();

@@ -6,6 +6,9 @@ const fsRenderGeometry = `#version 300 es
     uniform vec3 cameraPosition;
     uniform float time;
     uniform sampler3D tScene;
+    uniform sampler3D tCone;
+    uniform sampler2D tMatcap;
+
     uniform vec4 sceneData;
     uniform float uAlpha;
     uniform float useReflection;
@@ -13,9 +16,13 @@ const fsRenderGeometry = `#version 300 es
 
     in vec3 vPos;
     in vec3 vNormal;
+    in vec4 vColor;
+    in vec3 vMPos;
+    in float vZ;
 
-    out vec4 colorData;
-    
+    layout(location=0) out vec4 colorData1;
+    layout(location=1) out vec4 colorData2;
+
     float sdBox( vec3 p, vec3 b ) {
       vec3 q = abs(p) - b;
       return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
@@ -24,18 +31,16 @@ const fsRenderGeometry = `#version 300 es
     float sceneSDF(vec3 pos) {
     
       vec3 uvw = pos;
-      uvw -= sceneData.rgb;
-      uvw /= (sceneData.a);
-      return max(sdBox(uvw - vec3(0.5), vec3(.5)), 0.) + sceneData.a * texture(tScene, uvw).r;
+      return texture(tScene, uvw).r;
     
     }
     
     vec4 getAmbientOcclusion(vec3 ro, vec3 rd) {
       vec4 totao = vec4(0.);
       float sca = 1.;
-      float steps = 150.;
-      for(float aoi = 3.; aoi < steps; aoi+=1.) {
-        float hr = 0.0001 + 2. * aoi * aoi / (steps * steps);
+      float steps = 400.;
+      for(float aoi = 2.; aoi < steps; aoi+=1.) {
+        float hr = 0.01 + 2. * aoi * aoi / (steps * steps);
         vec3 p = ro + rd * hr;
         float dd = sceneSDF(p);
         float ao = 0.;
@@ -43,7 +48,7 @@ const fsRenderGeometry = `#version 300 es
           ao = clamp((hr - dd), 0., 1.);
         }
         totao += ao * sca * vec4(1.);
-        sca *= 0.94;
+        sca *= 0.972;
       }
       float aoCoef = 1.;
       totao = vec4(totao.rgb, clamp(aoCoef * totao.w, 0., 1.));
@@ -54,10 +59,10 @@ const fsRenderGeometry = `#version 300 es
         float res = 1.0;
         float ph = 1e20;
         float t = mint;
-        for( int i=0; i<50 && t<maxt; i++ )
+        for( int i=0; i<150 && t<maxt; i++ )
         {
             float h = sceneSDF(ro + rd*t);
-            if( h<0.045 )
+            if( h<0.0045 )
                 return 0.0;
             float y = h*h/(4.0*ph);
             float d = sqrt(h*h-y*y);
@@ -67,81 +72,113 @@ const fsRenderGeometry = `#version 300 es
         }
         return res;
     }
-    
-    float map(vec3 eye, vec3 marchingDirection, float start, float end) {
         
-        float depth = start;
-        
-        for (int i = 0; i < 100; i++) {
-    
-            float dist = sceneSDF(eye + depth * marchingDirection);
-            float d = abs(dist);
-            if (abs(dist) < 0.02) return depth;
-    
-            depth +=  d;
-    
-            if (depth >= end) {
-                return end;
-            }
-    
-        }
-    
-        return end;
-    }
-    
     vec3 calcNormal( in vec3 p ){
-        const float h = 0.001; // replace by an appropriate value
+        const float h = 0.003; // replace by an appropriate value
         const vec2 k = vec2(1.,-1.);
         return normalize( k.xyy*sceneSDF( p + k.xyy*h ) + 
                           k.yyx*sceneSDF( p + k.yyx*h ) + 
                           k.yxy*sceneSDF( p + k.yxy*h ) + 
                           k.xxx*sceneSDF( p + k.xxx*h ) );
     }
+
+
+
+
+    const float MAX_DISTANCE = 2.;
+    const float MAX_ALPHA = 0.95;
+    float voxelWorldSize = 1. / 256.;
+
+    vec4 voxelTracing(vec3 startPos, vec3 direction, float tanHalfAngle) {
+      float lod = 0.0;
+      vec3 color = vec3(0.0);
+      float alpha = 0.0;
+      float occlusion = 0.0;
+
+      //Voxel Cube Size
+      float dist = voxelWorldSize;
+
+      while(dist < MAX_DISTANCE && alpha < MAX_ALPHA) {
+        float diameter = max(voxelWorldSize, 2.0 * tanHalfAngle * dist);
+        float lodLevel = log2(diameter / voxelWorldSize);
+        vec4 voxelColor = textureLod(tCone, startPos + dist * direction, lodLevel);
+        float sub = 1. - alpha;
+        float aa = pow(voxelColor.a, 1.);
+        alpha += sub * aa;
+        occlusion += sub * aa / (1.0 + 0.03 * diameter);
+        color += sub * voxelColor.rgb;
+        dist += diameter;
+      }
+
+      return vec4(color, clamp(1. -  occlusion, 0., 1.) );
+    }
+
     void main() {
+
+        vec3 pos = (vPos - sceneData.rgb) / sceneData.a;
+
+        vec4 ao = getAmbientOcclusion(pos + 0.01 * vNormal, vNormal);
     
-        vec4 ao = getAmbientOcclusion(vPos, vNormal);
+        float ambientTerm = .1;
     
-        float ambientTerm = 0.8;
+        float lightAngle = 0.;
+        vec3 lightPosition = 2. * vec3(cos(lightAngle), 1., sin(lightAngle));
+        vec3 lightDirection = normalize(lightPosition - pos);
+
     
-        float lightAngle = time;
-        vec3 lightPosition = 100. * vec3(cos(lightAngle), 1., sin(lightAngle));
-        vec3 lightDirection = normalize(lightPosition - vPos);
-    
-        float shadows = softshadow(vPos + 0.08 * vNormal, lightDirection, 0., 6., 0.2 * (sin(time * 1.4235345) * 0.5 + 0.5));
+        float shadows = softshadow(pos + 0.01 * vNormal, lightDirection, 0., 2., 0.2);
     
         vec3 c = vec3(0.);
         float fresnel = 0.;
-    
-        if(useReflection > 0.) {
-    
-          vec3 eye = normalize(cameraPosition - vPos);
-          vec3 reflectRay = reflect(vNormal, eye);
-    
-          float d = map(vPos + 0.1 * vNormal, reflectRay, 0., 2.);
-    
-          if(d < 2.) {
-            c = vPos + d * reflectRay;
-            vec3 normal = calcNormal(c);
-            vec4 ao2 = getAmbientOcclusion(c, normal);
-            lightDirection = normalize(lightDirection - c);
-            float diffuse2 = max(dot(normal, lightDirection), 0.) * (1. - ambientTerm) + ambientTerm;
-            c = vec3(1. - ao2.w) * diffuse2;
-          }
-    
-          //Fresnel
-          float n1 = 1.2;
-          float n2 = 1.;
-          float R0 = (n1 - n2) / (n1 + n2);
-          R0 = R0 * R0;
-          fresnel = R0 + (1. - R0) * pow(1. - max(dot(vNormal, eye), 0.), 1.);
-    
-        }
+
+
+        
+
+        //Fresnel
+        vec3 eye =  normalize(cameraPosition - vPos);
+        float n1 = 1.;
+        float n2 = 1.;
+        float R0 = (n1 - n2) / (n1 + n2);
+        R0 = R0 * R0;
+        fresnel = R0 + (1. - R0) * pow(1. - max(dot(vNormal, -eye), 0.), 1.);
+        fresnel = fresnel;
+
+
+
+        //For the matcap
+        vec3 e = normalize(cameraPosition - vPos);
+        vec3 r = reflect(e, vNormal);
+        float m = 2.0 * sqrt(
+        pow(r.x, 2.0) +
+        pow(r.y, 2.0) +
+        pow(r.z + 1.0, 2.0)
+        );
+
+        vec2 st = r.xy / m + .5;
+
+        vec4 matcapColor = texture(tMatcap, st);
+
+
+        vec4 coneTracing = voxelTracing(pos, vNormal, 0.3);
     
         float diffuse = max(dot(vNormal, lightDirection), 0.) * (1. - ambientTerm) + ambientTerm;
-        colorData = vec4( c * fresnel + (1. - fresnel) * diffuse * vec3(1. - ao.w) * (ambientTerm + (1. - ambientTerm) * shadows), uAlpha );
-        colorData.rgb = pow(colorData.rgb, vec3(0.4545));
-    
-        if(uReady == 0.) colorData.rgb = vNormal * 0.5 + 0.5;
+        float shadowTerm = (ambientTerm + (1. - ambientTerm) * shadows);
+
+        colorData1 = vec4( vec3(0.94) * fresnel + (1. - fresnel) * diffuse * vec3(1. - ao.w) * shadowTerm, uAlpha );
+        vec3 color = pow(coneTracing.rgb, vec3(0.4545));
+        colorData1.rgb = vec3(pow(1. - ao.w, 0.4545) * color);
+
+        //if(uReady == 0. || true) colorData1.rgb = vNormal;
+
+        float n = 0.01;
+        float f = 1000.;
+        float d = (2.0 * n) / (f + n - vZ * (f - n));
+
+        d = abs(vMPos.z + length(cameraPosition)) / 20.;
+        colorData2 = vec4( vec3(clamp(pow(d, 100.), -1., 1.)), 0. );
+
+
+        //colorData2 = vec4(1. - 10000. * pow(d, 4.));
     }
 `;
 

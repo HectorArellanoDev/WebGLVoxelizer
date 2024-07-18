@@ -24,7 +24,9 @@ Promise.create = function() {
 
 //Generate the context using the provided canvas
 const setContext = canvas => {
-    gl = canvas.getContext('webgl2');
+    gl = canvas.getContext('webgl2', {
+        antialias: true
+    });
 
     //Load the extension to draw inside floating point textures
     gl.getExtension('EXT_color_buffer_float');
@@ -65,6 +67,18 @@ const createBuffer = data => {
     }
 }
 
+const createIndicesBuffer = data => {
+    if(contextReady) {
+        let buffer =  gl.createBuffer();
+        gl.bindBuffer( gl.ELEMENT_ARRAY_BUFFER, buffer);
+        gl.bufferData( gl.ELEMENT_ARRAY_BUFFER, data,  gl.STATIC_DRAW);
+        gl.bindBuffer( gl.ELEMENT_ARRAY_BUFFER, null);
+        return buffer;
+    } else {
+        console.log(new Error("Context not set yet"));
+    }
+}
+
 //Function used to generate an empty texture2D
 let memory = 0;
 const createTexture2D = (width, height, internalFormat, format, maxFilter, minFilter, type, data = null, wrap = gl.CLAMP_TO_EDGE) => {
@@ -72,13 +86,15 @@ const createTexture2D = (width, height, internalFormat, format, maxFilter, minFi
         let texture = gl.createTexture();
         texture.width = width;
         texture.height = height;
+        texture.internalFormat = internalFormat;
+        texture.format = format;
+        texture.type = type;
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, width, height, 0, format, type, data);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, maxFilter);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, minFilter);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
-
         gl.bindTexture(gl.TEXTURE_2D, null);
 
         if(type == gl.FLOAT) memory += width * height * 32 * 4;
@@ -92,6 +108,23 @@ const createTexture2D = (width, height, internalFormat, format, maxFilter, minFi
         return texture;
     } else {
         console.log(new Error("Content not set yet"));
+    }
+}
+
+const resizeTexture2D = (texture, width, height) => {
+
+    if(contextReady) {
+
+        texture.width = width;
+        texture.height = height;
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, texture.internalFormat, width, height, 0, texture.format, texture.type, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+    } else {
+
+        console.log(new Error("Content not set yet"));
+
     }
 }
 
@@ -195,22 +228,24 @@ const createDrawFramebuffer = (_textures, useDepth = false, useStencil = false) 
         if(useDepth) {
             let renderbuffer = gl.createRenderbuffer();
             gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
-            gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, textures[0].width, textures[0].height);
             if(useStencil) {
                 gl.renderbufferStorage( gl.RENDERBUFFER, gl.DEPTH_STENCIL,  textures[0].width, textures[0].height);
                 gl.framebufferRenderbuffer( gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
             } else {
+                gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, textures[0].width, textures[0].height);
                 gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderbuffer);
             }
         }
         gl.drawBuffers(drawBuffers);
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
 
         let status = gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER);
         if (status != gl.FRAMEBUFFER_COMPLETE) {
             console.log('fb status: ' + status.toString(16));
             return null;
         }
+
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+
 
         return frameData;
     } else {
@@ -338,9 +373,11 @@ export {
     setContext,
     generateProgram,
     createTexture2D,
+    resizeTexture2D,
     createTexture3D,
     bindTexture,
     createBuffer,
+    createIndicesBuffer,
     createDrawFramebuffer,
     createFramebuffer3D,
     loadGeometry
