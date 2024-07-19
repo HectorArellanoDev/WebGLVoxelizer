@@ -89,14 +89,19 @@ class DistanceFieldWebGL {
 
 
 
-                this.ringsToVisit = 1;
+                this.ringsToVisit = 2;
                 gl.useProgram(Programs.voxelizerColor);
                 gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, coneTracing);
                 gl.disable(gl.DEPTH_TEST);
 
+                const cc = .0;
+                gl.enable(gl.BLEND);
+                gl.blendEquation(gl.FUNC_ADD);
+                gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
+                gl.clearColor(cc, cc, cc, 1.);
                 gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-                gl.clearColor(0, 0, 0, 0);
+
 
                 webGL2.bindTexture(Programs.voxelizerColor.tPositions, positionsTexture, 0);
                 webGL2.bindTexture(Programs.voxelizerColor.tColor, colorsTexture, 1);
@@ -111,6 +116,7 @@ class DistanceFieldWebGL {
                 gl.drawArraysInstanced(gl.POINTS, 0, response.amountOfTriangles, Math.pow(2 * this.ringsToVisit + 1, 3));
 
 
+                gl.disable(gl.BLEND);
 
 
 

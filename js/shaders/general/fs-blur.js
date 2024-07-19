@@ -14,7 +14,7 @@ void main(void) {
 
     float sum = 1.;
     float m = 1.;
-    int depth = int(abs(50. * textureLod(tDepth, uv, 0.).r));
+    int depth = int(abs(0. * texture(tDepth, uv).r));
     vec4 blend = vec4(0.);
     float n = float(depth);
     for (int i = 0; i <= depth; i += 1) {

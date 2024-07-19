@@ -19,6 +19,8 @@ let cameraDistance = 100;
 
 let displayDebug = false;
 
+let DPR = 2;
+
 
 //Textures for postprocessing
 let colorTexture, depthTexture,  helpTexture;
@@ -40,9 +42,9 @@ function resize() {
     gl.deleteFramebuffer(postFramebuffer1);
     gl.deleteFramebuffer(postFramebuffer2);
 
-    colorTexture = webGL2.createTexture2D(canvas.width, canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
-    depthTexture = webGL2.createTexture2D(canvas.width, canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
-    helpTexture = webGL2.createTexture2D(canvas.width, canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
+    colorTexture = webGL2.createTexture2D(DPR * canvas.width, DPR * canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
+    depthTexture = webGL2.createTexture2D(DPR * canvas.width, DPR * canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
+    helpTexture = webGL2.createTexture2D(DPR * canvas.width, DPR * canvas.height, gl.RGBA32F, gl.RGBA, gl.LINEAR, gl.LINEAR_MIPMAP_LINEAR, gl.FLOAT, null);
 
     geomFramebuffer = webGL2.createDrawFramebuffer([colorTexture, depthTexture], true);
     postFramebuffer1 = webGL2.createDrawFramebuffer(helpTexture);
@@ -66,7 +68,7 @@ let protein = null;
 let waitForGeometry = Promise.create();
 let identityMatrix = mat4.create();
 
-await loader.parse("./js/geometry/protein.glb").then(result => {
+await loader.parse("./js/geometry/testProtein.glb").then(result => {
 
     protein = result[0][0];
 
@@ -151,7 +153,7 @@ async function textureFromImage(url) {
     return webGL2.createTexture2D(source.width, source.height, gl.RGBA8, gl.RGBA, gl.LINEAR, gl.LINEAR, gl.UNSIGNED_BYTE, source);
 }
 
-let matcapTexture = await textureFromImage('./js/images/matcapBG1.jpeg');
+let matcapTexture = await textureFromImage('./js/images/whiteMatcap.jpg');
 
 
 //Create the voxelizers
@@ -209,8 +211,13 @@ let render = () => {
 
     gl.useProgram(Programs.renderGeometry);
     gl.uniformMatrix4fv(Programs.renderGeometry.perspectiveMatrix, false, camera.perspectiveMatrix);
+    gl.uniformMatrix4fv(Programs.renderGeometry.cameraOrientation, false, camera.orientationMatrix);
+
+
     gl.uniform4f(Programs.renderGeometry.sceneData, -23.199684143066406, -21.650390625, -25.683975219726562, 54.35630416870117);
+
     gl.uniform3f(Programs.renderGeometry.cameraPosition, camera.position[0],camera.position[1], camera.position[2]);
+
     gl.uniform1f(Programs.renderGeometry.uReady, Number(voxelsReady));
     gl.uniform1f(Programs.renderGeometry.uAlpha, 1);
     gl.uniform1f(Programs.renderGeometry.useReflection, 0);
@@ -222,7 +229,7 @@ let render = () => {
 
 
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, geomFramebuffer);
-    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.viewport(0, 0, DPR * canvas.width, DPR * canvas.height);
     gl.clearColor(0.94, 0.94, 0.94, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
@@ -244,7 +251,7 @@ let render = () => {
     gl.disable(gl.DEPTH_TEST);
 
 
-    // //Render results in the screen
+    //Render results in the screen
     // gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, postFramebuffer1);
     // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     // gl.clearColor(0, 0, 0, 0);
@@ -261,6 +268,8 @@ let render = () => {
 
 
     // gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    // gl.viewport(0, 0,  canvas.width, canvas.height);
+
     // gl.clearColor(0, 0, 0, 0);
     // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     // webGL2.bindTexture(Programs.blur.tData, helpTexture, 0);
@@ -271,6 +280,7 @@ let render = () => {
 
 
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    gl.viewport(0, 0,  canvas.width, canvas.height);
     gl.clearColor(0, 0, 0, 0);
     gl.useProgram(Programs.texture);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

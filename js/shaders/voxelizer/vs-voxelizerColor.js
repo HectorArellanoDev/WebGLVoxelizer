@@ -212,7 +212,7 @@ void main() {
 	}
 	 
     //Rendering as points to save data scattered in a texture
-	gl_PointSize = 1.;
+	gl_PointSize = 10.;
 	gl_Position = vec4(finalPos, 0., 1.0);
 
 }

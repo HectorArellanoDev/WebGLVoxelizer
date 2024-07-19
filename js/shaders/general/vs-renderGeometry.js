@@ -6,9 +6,11 @@ in vec4 color;
 
 uniform mat4 modelMatrix;
 uniform mat4 modelViewMatrix;
+uniform mat4 cameraOrientation;
 uniform mat4 perspectiveMatrix;
 
 out vec3 vNormal;
+out vec3 vNormal2;
 out vec3 vPos;
 out vec4 vColor;
 out vec3 vMPos;
@@ -19,7 +21,8 @@ void main() {
     vec3 pos = position;
 
     vPos = pos;
-    vNormal = normal.rgb;
+    vNormal = vec3(cameraOrientation * vec4(normal, 1.));
+    vNormal2 = normal;
     vColor = color;
 
     vMPos = vec3(modelViewMatrix * vec4(pos, 1.));

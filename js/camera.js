@@ -16,7 +16,7 @@ class Camera {
         this.ratio = 1;
 
         this.init = true;
-        this.target = [0, 1, 0.6];
+        this.target = [0, 4, 0];
 
         this.perspectiveMatrix = mat4.create();
         this.cameraTransformMatrix = mat4.create();

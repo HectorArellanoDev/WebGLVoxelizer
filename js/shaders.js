@@ -50,6 +50,8 @@ export function init() {
     renderGeometry.modelMatrix = gl.getUniformLocation(renderGeometry, "modelMatrix");
     renderGeometry.modelViewMatrix = gl.getUniformLocation(renderGeometry, "modelViewMatrix");
     renderGeometry.perspectiveMatrix = gl.getUniformLocation(renderGeometry, "perspectiveMatrix");
+    renderGeometry.cameraOrientation = gl.getUniformLocation(renderGeometry, "cameraOrientation");
+
     renderGeometry.tScene = gl.getUniformLocation(renderGeometry, "tScene");
     renderGeometry.sceneData = gl.getUniformLocation(renderGeometry, "sceneData");
     renderGeometry.uAlpha = gl.getUniformLocation(renderGeometry, "uAlpha");
