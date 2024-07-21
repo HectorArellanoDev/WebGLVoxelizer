@@ -32,16 +32,16 @@ const fsRenderGeometry = `#version 300 es
     float sceneSDF(vec3 pos) {
     
       vec3 uvw = pos;
-      return texture(tScene, uvw).r;
+      return texture(tScene, uvw).a;
     
     }
     
     vec4 getAmbientOcclusion(vec3 ro, vec3 rd) {
       vec4 totao = vec4(0.);
       float sca = 1.;
-      float steps = 400.;
+      float steps = 200.;
       for(float aoi = 2.; aoi < steps; aoi+=1.) {
-        float hr = 0.01 + 2. * aoi * aoi / (steps * steps);
+        float hr = 0.001 + 2. * aoi * aoi / (steps * steps);
         vec3 p = ro + rd * hr;
         float dd = sceneSDF(p);
         float ao = 0.;
@@ -49,7 +49,7 @@ const fsRenderGeometry = `#version 300 es
           ao = clamp((hr - dd), 0., 1.);
         }
         totao += ao * sca * vec4(1.);
-        sca *= 0.96;
+        sca *= 0.94;
       }
       float aoCoef = 1.;
       totao = vec4(totao.rgb, clamp(aoCoef * totao.w, 0., 1.));
@@ -175,50 +175,81 @@ const fsRenderGeometry = `#version 300 es
         }
     }
 
+
+
+
+
+
+
+    // Great tip from iq, see: https://www.shadertoy.com/view/4dBXz3
+    vec3 MirrorVector(in vec3 v, in vec3 n)
+    {
+        return v + 2.0 * n * max(0.0, -dot(n,v));
+    }
+
+    // Dave_Hoskins hash functions (https://www.shadertoy.com/view/4djSRW)
+    float Hash11(float p)
+    {
+      vec3 p3  = fract(vec3(p) * 443.897);
+        p3 += dot(p3, p3.yzx + 19.19);
+        return fract((p3.x + p3.y) * p3.z);
+    }
+
+    vec3 Hash33(vec3 p3)
+    {
+      p3 = fract(p3 * vec3(443.897, 441.423, 437.195));
+        p3 += dot(p3, p3.yxz+19.19);
+        return fract((p3.xxy + p3.yxx)*p3.zyx);
+    }
+
+
+    vec3 GenerateSampleVector(in vec3 norm, in float i)
+    {
+      vec3 randDir = normalize(Hash33(norm + i));
+        return MirrorVector(randDir, norm);
+    }
+
+    float SSSSampleDepth       = 1.;
+    float SSSThicknessSamples  = 32.0;
+    float SSSThicknessSamplesI = 0.03125;
+
+
+    float CalculateThickness(in vec3 pos, in vec3 norm)
+    {
+        // Perform a number of samples, accumulate thickness, and then divide by number of samples.
+        float thickness = 0.0;
+        
+        for(float i = 0.0; i < SSSThicknessSamples; ++i)
+        {
+            // For each sample, generate a random length and direction.
+            float sampleLength = Hash11(i) * SSSSampleDepth;
+            vec3 sampleDir = GenerateSampleVector(-norm, i);
+            
+            // Thickness is the SDF depth value at that sample point.
+            // Remember, internal SDF values are negative. So we add the 
+            // sample length to ensure we get a positive value.
+            thickness += sampleLength - texture(tScene, pos + (sampleDir * sampleLength)).a;
+        }
+        
+        // Thickness on range [0, 1], where 0 is maximum thickness/density.
+        // Remember, the resulting thickness value is multipled against our 
+        // lighting during the actual SSS calculation so a value closer to 
+        // 1.0 means less absorption/brighter SSS lighting.
+        
+        return clamp(thickness * SSSThicknessSamplesI, 0.0, 1.0);
+    }
+
+
     void main() {
 
         //Ambient occlusion
         vec3 pos = (vPos - sceneData.rgb) / sceneData.a;
-        vec4 ao = getAmbientOcclusion(pos + 0.01 * vNormal, vNormal);
+        vec4 ao = getAmbientOcclusion(pos + 0.005 * vNormal2, vNormal2);
         float ambientOcclusion = 1. - ao.w;
 
-        vec3 baseColor = vColor.rgb / 255.;
+        vec4 indirectLighting = getIndirectLighting(pos + 0.005 * vNormal2, vNormal2, 1., 45.);
 
-        float n1 = 1.5;
-        float n2 = 1.;
-        float R0 = (n1 - n2) / (n1 + n2);
-        R0 *= R0;
-        float NdV = max(dot(vec3(1., 0., 0.), vNormal), 0.);
-        NdV = pow(NdV, 5.);
-        float fresnel = R0 + (1. - R0) * NdV;
-
-        vec3 eye = -normalize(cameraPosition - vPos);
-        vec3 reflectRay = reflect(eye, vNormal2);
-
-
-        vec3 lightPosition = vec3(0., 1000., 0.);
-        vec3 lightDirection = normalize(lightPosition - vPos);
-        vec3 reflectLight = reflect(lightDirection, vNormal2);
-
-        float diffuse = max(dot(vNormal2, lightDirection), 0.);
-        float specular = pow(max(dot(eye, reflectLight), 0.), 10.);
-
-        float lighting = diffuse * 0.3 + 0.3 * specular + 0.4;
-
-        vec4 indirectLighting = getIndirectLighting(pos + 0.03 * vNormal2, vNormal2, 1., 45.);
-
-        baseColor *= lighting;
-        baseColor += indirectLighting.rgb;
-
-        vec3 e = normalize(vMPos);
-        vec3 r = reflect(e, vNormal);
-        float m = 2.0 * sqrt(pow(r.x, 2.0) + pow(r.y, 2.0) + pow(r.z + 1.0, 2.0));
-        vec2 st = r.xy / m + .5;
-        vec4 matcap = texture(tMatcap, st);
-
-        baseColor = (1. - ao.w) * mix(vec3(0.94), baseColor, vec3(1. - fresnel));
-
-        colorData1 = vec4(pow(baseColor, vec3(0.4545)), 1.);
+        colorData1 = vec4(ambientOcclusion);
 
 
         float d = 1.;

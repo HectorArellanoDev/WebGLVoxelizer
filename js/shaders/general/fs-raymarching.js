@@ -36,7 +36,7 @@ const fsRaymarching = `#version 300 es
 
     float sceneSDF(vec3 samplePoint) {
 
-        return max(sdBox(samplePoint, vec3(0.5, 0.48, 0.5)), texture(tData, samplePoint + vec3(0.5)).r);
+        return max(sdBox(samplePoint, vec3(0.5, 0.5, 0.5)), texture(tData, samplePoint + vec3(0.5)).a);
 
     }
 
@@ -141,11 +141,15 @@ const fsRaymarching = `#version 300 es
         //Renders the position found.
         position3D += dir * dist ;
 
+        //Get the color
+        vec3 colorRGB = texture(tData, position3D + vec3(0.5)).rgb;
+
+
         vec3 normal = calcNormal(position3D);
 
         vec4 ao = getAmbientOcclusion(position3D, normal);
 
-        colorData = vec4(1. - ao.w);
+        colorData = vec4(colorRGB * (1. - ao.w), 1.);
 
     }
 

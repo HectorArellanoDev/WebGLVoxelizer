@@ -15,9 +15,9 @@ canvas.style.height = String(canvas.height) + "px";
 webGL2.setContext(canvas);
 
 let camera = new Camera(canvas);
-let cameraDistance = 100;
+let cameraDistance = 9;
 
-let displayDebug = false;
+let displayDebug = true;
 
 let DPR = 2;
 
@@ -86,7 +86,6 @@ await loader.parse("./js/geometry/testProtein.glb").then(result => {
     let orderedData2 = [];
     let data = protein.geometry.position.array;
     let data2 = protein.geometry.color.array;
-    console.log(data2);
 
     let index = protein.geometry.index;
     let total = protein.geometry.index.length;
@@ -135,7 +134,6 @@ await loader.parse("./js/geometry/testProtein.glb").then(result => {
 });
 
 await waitForGeometry;
-console.log(protein);
 
 
 //Initiate the shaders programs

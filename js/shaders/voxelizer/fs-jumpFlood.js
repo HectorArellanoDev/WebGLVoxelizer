@@ -100,9 +100,9 @@ const fsJumpFlood = `#version 300 es
             }
         }
 
-        float dist = texelFetch(tJump, index2D(bestIndex), 0).y;
+        vec4 data = texelFetch(tJump, index2D(bestIndex), 0);
 
-        colorData = vec4(bestIndex, dist, 0., 1.);
+        colorData = vec4(bestIndex, data.yz, 1.);
     }
 
 `;

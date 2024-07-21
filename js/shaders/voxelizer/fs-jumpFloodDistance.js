@@ -76,9 +76,18 @@ const fsJumpFloodDistance = `#version 300 es
         vec3 dd = GetLocalCellPositionFromIndex(voxelIndex, vec3(voxelResolution)) - GetLocalCellPositionFromIndex(closestSeedVoxelIndex, vec3(voxelResolution));
         float distanceToClosestSeedVoxel = length(dd) / (voxelResolution);
 
-        float distanceOfClosestSeedVoxelToSurface = texelFetch(tJump, index2D(closestSeedVoxelIndex), 0).y;
+        vec4 distanceData = texelFetch(tJump, index2D(closestSeedVoxelIndex), 0);
+
+        float distanceOfClosestSeedVoxelToSurface = distanceData.y;
+
+        float f = distanceData.z;
+        vec3 color;
+        color.r = floor(f / (256.0 * 256.0) );
+        color.g = floor( (f - color.r * 256.0 * 256.0) / 256.0);
+        color.b = floor(f - color.r * 256.0 * 256.0 - color.g * 256.0);
+        color /= 256.;
         
-        colorData = vec4(distanceToClosestSeedVoxel + distanceOfClosestSeedVoxelToSurface);
+        colorData = vec4(color, distanceToClosestSeedVoxel + distanceOfClosestSeedVoxelToSurface);
     }
 `;
 

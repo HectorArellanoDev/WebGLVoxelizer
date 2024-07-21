@@ -2,10 +2,14 @@ import {gl}                     from './webGL/webGL2.js';
 import * as webGL2              from './webGL/webGL2.js';
 import {vsRenderGeometry}       from './shaders/general/vs-renderGeometry.js'
 import {fsColor}                from './shaders/general/fs-simpleColor.js';
+import {fsColor2}                from './shaders/general/fs-simpleColor2.js';
+
 import {vsVoxelizer}            from './shaders/voxelizer/vs-voxelizer.js';
 import {vsVoxelizerColor}            from './shaders/voxelizer/vs-voxelizerColor.js';
 
 import {vsQuad}                 from './shaders/general/vs-quad.js';
+import {vsQuadColor}            from './shaders/general/vs-quadColor.js';
+
 import {fsTexture}              from './shaders/general/fs-simpleTexture.js';
 import {fsFilter}               from './shaders/voxelizer/fs-filter.js';
 import {fsJumpFlood}            from './shaders/voxelizer/fs-jumpFlood.js';
@@ -34,6 +38,7 @@ export let arrayTo3D;
 export let raymarcher;
 export let sceneDFShader;
 export let blur;
+export let quadColor;
 
 
 //=======================================================================================================
@@ -65,8 +70,11 @@ export function init() {
 
 
     
-    voxelizer = webGL2.generateProgram(vsVoxelizer, fsColor);
+    voxelizer = webGL2.generateProgram(vsVoxelizer, fsColor2);
     voxelizer.tPositions = gl.getUniformLocation(voxelizer, "tPositions");
+    voxelizer.tColors = gl.getUniformLocation(voxelizer, "tColors");
+
+
     voxelizer.uSize = gl.getUniformLocation(voxelizer, "uSize");
     voxelizer.uMin = gl.getUniformLocation(voxelizer, "uMin");
     voxelizer.uScaleVoxel = gl.getUniformLocation(voxelizer, "uScaleVoxel");
@@ -91,10 +99,11 @@ export function init() {
     texture = webGL2.generateProgram(vsQuad, fsTexture);
     texture.uTexture = gl.getUniformLocation(texture, "uTexture");
 
+    quadColor = webGL2.generateProgram(vsQuadColor, fsColor2);
+    quadColor.color = gl.getUniformLocation(quadColor, "color");
 
     filterVoxels = webGL2.generateProgram(vsQuad, fsFilter);
     filterVoxels.tData = gl.getUniformLocation(filterVoxels, "tData");
-
 
     jumpFlood = webGL2.generateProgram(vsQuad, fsJumpFlood);
     jumpFlood.tJump = gl.getUniformLocation(jumpFlood, "tJump");

@@ -1,6 +1,8 @@
 const vsVoxelizer = `#version 300 es
 
 uniform sampler2D tPositions;
+uniform sampler2D tColors;
+
 uniform vec3 uSize;
 uniform vec3 uMin;
 uniform float uScaleVoxel;
@@ -10,6 +12,7 @@ uniform float uPoints;
 uniform float uRings;
 
 out vec4 colorData;
+out vec4 colorData2;
 
 vec3 g_CellSize = vec3(0.);
 int g_NumCellsX = 0;
@@ -154,6 +157,13 @@ void main() {
 	tri2 = (tri2 - uMin + padding) / (uScaleVoxel + 2. * padding);
 
 
+	vec3 color1 = texelFetch(tColors, index2D(triangleIndex), 0).rgb;
+	vec3 color2 = texelFetch(tColors, index2D(triangleIndex + 1.), 0).rgb;
+	vec3 color3 = texelFetch(tColors, index2D(triangleIndex + 2.), 0).rgb;
+
+	vec3 averageColor = uPoints > 0. ? color1 : ( color1 + color2 + color3 ) / 3.;
+	//averageColor /= 256.;
+
 	float lr = 2. * uRings + 1.;
 	float offsetIndex = float(gl_InstanceID);
 	float cellsPerLine = lr;
@@ -195,11 +205,15 @@ void main() {
 
 	vp -= vec2(0.5);
 	float id = floor(vp.x + vp.y * uBucketData.x);
-	colorData = vec4(id, dist, 0., 1.);
+	
+	float cc = averageColor.r * 256.0 * 256.0 + averageColor.g * 256.0 + averageColor.b;
+	colorData = vec4(id, dist, cc, 1.);
+
+	colorData2 = vec4(averageColor, 1.);
 	 
     //Rendering as points to save data scattered in a texture
 	gl_PointSize = 1.;
-	gl_Position = vec4(voxelPosition, 0., 1.0);
+	gl_Position = vec4(voxelPosition, dist, 1.0);
 
 }
 
